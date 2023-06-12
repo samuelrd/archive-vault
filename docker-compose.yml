@@ -1,0 +1,66 @@
+version: "3"
+services:
+  node:
+    container_name: ${CONTAINER_PREFIX}-node
+    build: ./docker/node-16.6.0
+    working_dir: /var/www
+    command: "npm run dev"
+    user: 'node'
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./htdocs:/var/www:delegated
+    networks:
+      - docker
+  web:
+    container_name: ${CONTAINER_PREFIX}-nginx
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes: 
+      - ./htdocs:/var/www:cached
+      - ./docker/config/site.conf:/etc/nginx/conf.d/site.conf:cached
+    links:
+      - php
+    networks:
+      - docker
+  db:
+    container_name: ${CONTAINER_PREFIX}-db
+    image: mysql:5.7
+    restart: always
+    environment:
+        MYSQL_DATABASE: ${DB_NAME}
+        MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - docker_mysql:/var/lib/mysql
+    networks:
+      - docker
+  php:
+    container_name: ${CONTAINER_PREFIX}-php-fpm
+    build: ./docker/php-fpm-8.1.0
+    working_dir: /var/www
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./htdocs:/var/www:delegated
+      - ./docker/config/cache.ini:/opt/bitnami/php/etc/conf.d/cache.ini
+      - ./docker/config/xdebug.ini:/opt/bitnami/php/etc/conf.d/xdebug.ini
+    links: 
+      - db
+    networks:
+      - docker
+  mailhog:
+    container_name: ${CONTAINER_PREFIX}-mailhog
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - docker
+networks:
+  docker:
+    name: ${NETWORK_NAME}
+volumes:
+  docker_mysql:
